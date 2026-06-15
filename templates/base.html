@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Groundwater Report{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f5f5f3;
+    }
+
+    .page-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    header.site-header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #1a6b9a;
+    }
+
+    header.site-header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1a6b9a;
+      letter-spacing: -0.01em;
+    }
+
+    header.site-header p {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.2rem;
+    }
+
+    /* Cards */
+    .card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* Forms */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 500; color: #444; margin-bottom: 0.3rem; }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    input:focus, select:focus { outline: none; border-color: #1a6b9a; box-shadow: 0 0 0 2px rgba(26,107,154,0.15); }
+
+    .form-row { display: flex; gap: 1rem; }
+    .form-row .form-group { flex: 1; }
+
+    .or-divider {
+      text-align: center;
+      color: #999;
+      font-size: 0.8rem;
+      margin: 1rem 0;
+      position: relative;
+    }
+    .or-divider::before, .or-divider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 44%;
+      height: 1px;
+      background: #ddd;
+    }
+    .or-divider::before { left: 0; }
+    .or-divider::after { right: 0; }
+
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 0.55rem 1.25rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-primary { background: #1a6b9a; color: #fff; }
+    .btn-primary:hover { background: #155a84; }
+    .btn-secondary { background: #f0f0f0; color: #333; border: 1px solid #ccc; }
+    .btn-secondary:hover { background: #e4e4e4; }
+    .btn-pdf { background: #b94a2c; color: #fff; }
+    .btn-pdf:hover { background: #9c3b22; }
+
+    /* Alerts */
+    .alert { padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1.25rem; font-size: 0.875rem; }
+    .alert-error { background: #fff0ee; border: 1px solid #f5c6c0; color: #8b2218; }
+    .alert-info  { background: #e8f3fb; border: 1px solid #b3d4e8; color: #1a4a6b; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-gray   { background: #f1f5f9; color: #475569; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+
+    /* Data list */
+    .data-list { list-style: none; }
+    .data-list li { padding: 0.4rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+    .data-list li:last-child { border-bottom: none; }
+    .data-list strong { color: #333; }
+
+    /* Helper */
+    .hint { font-size: 0.78rem; color: #888; margin-top: 0.25rem; }
+    .text-muted { color: #666; font-size: 0.85rem; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .flex-gap { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .page-wrap { max-width: 100%; padding: 0; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="site-header">
+      <h1>CA Groundwater &amp; Well Report</h1>
+      <p>Basin status (Bulletin 118) + nearby OSWCR well records for San Diego County parcels</p>
+    </header>
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

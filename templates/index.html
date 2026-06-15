@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Parcel Lookup — Groundwater Report{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+  <h2>Look up a parcel</h2>
+
+  <form method="POST" action="/report">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="apn">APN (Assessor's Parcel Number)</label>
+        <input type="text" id="apn" name="apn" placeholder="e.g. 188-040-12-00"
+               value="{{ form.apn if form else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="label">Parcel label <span class="hint" style="display:inline">(optional)</span></label>
+        <input type="text" id="label" name="label" placeholder="e.g. Smith Ranch"
+               value="{{ form.label if form else '' }}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="street">Street address</label>
+      <input type="text" id="street" name="street" placeholder="e.g. 28234 Valley Center Rd"
+             value="{{ form.street if form else '' }}">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city" placeholder="Valley Center"
+               value="{{ form.city if form else 'Valley Center' }}">
+      </div>
+      <div class="form-group" style="max-width:80px">
+        <label for="state">State</label>
+        <input type="text" id="state" name="state" value="CA" readonly>
+      </div>
+    </div>
+
+    <div class="or-divider">or enter coordinates directly</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="lat">Latitude</label>
+        <input type="text" id="lat" name="lat" placeholder="33.2200"
+               value="{{ form.lat if form else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="lon">Longitude</label>
+        <input type="text" id="lon" name="lon" placeholder="-117.0300"
+               value="{{ form.lon if form else '' }}">
+      </div>
+    </div>
+
+    <div class="form-group" style="max-width:180px">
+      <label for="radius">Search radius (miles)</label>
+      <input type="number" id="radius" name="radius" value="1.5" min="0.25" max="10" step="0.25">
+      <p class="hint">Wells within this radius are included in the report.</p>
+    </div>
+
+    <div class="mt-2">
+      <button type="submit" class="btn btn-primary">Generate report</button>
+    </div>
+
+  </form>
+</div>
+
+<div class="alert alert-info">
+  <strong>Coverage:</strong> Basin boundaries cover all 515 CA Bulletin 118 basins.
+  Well records are filtered to San Diego County (39,519 OSWCR records).
+</div>
+{% endblock %}

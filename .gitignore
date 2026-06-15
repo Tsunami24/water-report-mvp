@@ -1,0 +1,7 @@
+data/
+output/
+__pycache__/
+**/__pycache__/
+*.pyc
+.DS_Store
+/tmp/

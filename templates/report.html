@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Report — {{ label }}{% endblock %}
+
+{% block head %}
+<style>
+  .report-meta { color: #555; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .report-meta strong { color: #222; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 0.5rem;
+  }
+
+  .basin-status-block {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .basin-status-icon {
+    font-size: 2rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .well-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .well-stat {
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 0.65rem 0.85rem;
+  }
+  .well-stat .value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1a6b9a;
+    line-height: 1.2;
+  }
+  .well-stat .stat-label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.15rem;
+  }
+
+  .use-breakdown { font-size: 0.82rem; color: #555; margin-top: 0.5rem; }
+  .use-breakdown span { display: inline-block; margin-right: 0.75rem; }
+
+  .caveat {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.82rem;
+    color: #555;
+    border-radius: 0 4px 4px 0;
+    margin-top: 1rem;
+  }
+
+  .disclaimer {
+    font-size: 0.78rem;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    .well-stat-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ---- Header ---- #}
+<div class="report-meta">
+  <strong>{{ label }}</strong>
+  {% if apn %} &mdash; APN: {{ apn }}{% endif %}
+  <br>
+  Location: {{ "%.5f"|format(lat) }}, {{ "%.5f"|format(lon) }}
+  &nbsp;&bull;&nbsp; Report date: {{ report_date }}
+</div>
+
+{# ---- Basin Status ---- #}
+<div class="card">
+  <p class="section-label">Groundwater Basin Status</p>
+
+  {% if basin.in_basin %}
+  <div class="basin-status-block">
+    <div class="basin-status-icon">💧</div>
+    <div>
+      <p>
+        This parcel is located within the
+        <strong>{{ basin.basin_name }}</strong>
+        (Basin {{ basin.basin_id }}).
+      </p>
+      <div class="flex-gap mt-1">
+        {% if basin.priority == 'High' %}
+          <span class="badge badge-red">High Priority</span>
+        {% elif basin.priority == 'Medium' %}
+          <span class="badge badge-yellow">Medium Priority</span>
+        {% elif basin.priority == 'Low' %}
+          <span class="badge badge-gray">Low Priority</span>
+        {% elif basin.priority == 'Very Low' %}
+          <span class="badge badge-gray">Very Low Priority</span>
+        {% endif %}
+
+        {% if basin.sgma_managed %}
+          <span class="badge badge-blue">SGMA Managed</span>
+        {% else %}
+          <span class="badge badge-gray">Not SGMA Required</span>
+        {% endif %}
+      </div>
+      {% if basin.gsa_name %}
+      <p class="text-muted mt-1">GSA: {{ basin.gsa_name }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="basin-status-block">
+    <div class="basin-status-icon">⛰️</div>
+    <div>
+      <p>
+        This parcel does <strong>not</strong> fall within a defined
+        Bulletin 118 groundwater basin boundary.
+      </p>
+      <p class="text-muted mt-1">
+        This is common for inland/foothill areas of San Diego County where
+        groundwater occurs in fractured hard-rock formations rather than
+        alluvial basins. SGMA reporting and allocation requirements
+        generally do not apply here. The key question is what nearby
+        well records suggest about local drilling depth, water level,
+        and yield.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{# ---- Nearby Wells ---- #}
+<div class="card">
+  <p class="section-label">Nearby Well Records (within {{ radius }} miles)</p>
+
+  {% if wells.count == 0 %}
+  <p class="text-muted">
+    No well completion records found within {{ radius }} miles.
+    This may reflect sparse historical drilling or gaps in the OSWCR
+    dataset. Consider widening the search radius.
+  </p>
+
+  {% else %}
+  {% set s = wells.summary %}
+
+  <div class="well-stat-grid">
+    <div class="well-stat">
+      <div class="value">{{ wells.count }}</div>
+      <div class="stat-label">Wells found within {{ radius }} mi</div>
+    </div>
+    <div class="well-stat">
+      <div class="value">{{ s.median_depth_ft|int }} ft</div>
+      <div class="stat-label">Median completed depth</div>
+    </div>
+    <div class="well-stat">
+      <div class="value">{{ s.median_static_water_level_ft|int }} ft</div>
+      <div class="stat-label">Median static water level (BLS)</div>
+    </div>
+    {% if s.median_yield_gpm is not none %}
+    <div class="well-stat">
+      <div class="value">{{ "%.1f"|format(s.median_yield_gpm) }} gpm</div>
+      <div class="stat-label">Median yield ({{ s.yield_reported_count }}/{{ wells.count }} wells reported)</div>
+    </div>
+    {% else %}
+    <div class="well-stat">
+      <div class="value">—</div>
+      <div class="stat-label">Yield not reported (common in older records)</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <p class="use-breakdown mt-1">
+    <strong>Use types:</strong>
+    {% for use, cnt in s.use_breakdown.items() %}
+    <span>{{ use }}: {{ cnt }}</span>
+    {% endfor %}
+  </p>
+
+  <p class="text-muted mt-1" style="font-size:0.8rem">
+    Depth range: {{ s.depth_range_ft[0] }}–{{ s.depth_range_ft[1] }} ft &bull;
+    Records from {{ s.date_range[0] }} to {{ s.date_range[1] }}
+  </p>
+
+  <div class="caveat">
+    Well completion report locations are accurate to the surrounding ~1 sq. mile
+    (PLSS section), not an exact address. These figures describe wells reported
+    in this general area, not necessarily on this specific parcel.
+  </div>
+
+  {% endif %}
+</div>
+
+{# ---- Summary ---- #}
+<div class="card">
+  <p class="section-label">Summary</p>
+
+  {% if basin.in_basin %}
+    <p>
+      This parcel sits within an actively
+      {% if basin.sgma_managed %}SGMA-managed{% else %}defined Bulletin 118{% endif %}
+      basin
+      ({{ basin.basin_name }}, priority: {{ basin.priority or "—" }}).
+      {% if basin.sgma_managed %}
+      Check the SGMA Portal for the applicable Groundwater Sustainability Plan,
+      allocation limits, and any probationary status for this basin.
+      {% else %}
+      This basin is below the SGMA management threshold — no GSP is required,
+      though the basin boundary still applies to any DWR reporting.
+      {% endif %}
+    </p>
+  {% else %}
+    {% if wells.count >= 8 %}
+    <p>
+      Multiple wells have been drilled in this general area with recorded
+      depth and yield data, suggesting groundwater is locally accessible.
+      This is <strong>not a guarantee</strong> for any specific spot on the
+      parcel — fractured-rock yield is highly localized — but it provides
+      useful context on what to expect from a new well.
+    </p>
+    {% elif wells.count > 0 %}
+    <p>
+      Relatively few well records ({{ wells.count }}) exist within {{ radius }} miles.
+      This may reflect lower historical development density rather than poor
+      water prospects, but less local data is available to inform expectations.
+      Consider widening the search radius or consulting a local well driller.
+    </p>
+    {% else %}
+    <p>
+      No well records found within {{ radius }} miles. Consider widening the
+      search radius or consulting a local well driller for site-specific advice.
+    </p>
+    {% endif %}
+  {% endif %}
+
+  <p class="disclaimer">
+    This report is generated from publicly available state well-completion and
+    groundwater basin data (DWR Bulletin 118, OSWCR). It is informational only
+    and is not a substitute for a site-specific hydrogeological assessment.
+  </p>
+</div>
+
+{# ---- Actions ---- #}
+{% if not pdf_mode %}
+<div class="flex-gap no-print">
+  <a href="/" class="btn btn-secondary">&larr; New search</a>
+
+  {# Hidden form posts same params to /report/pdf #}
+  <form method="POST" action="/report/pdf" style="display:inline">
+    <input type="hidden" name="apn"    value="{{ apn }}">
+    <input type="hidden" name="label"  value="{{ label }}">
+    <input type="hidden" name="lat"    value="{{ lat }}">
+    <input type="hidden" name="lon"    value="{{ lon }}">
+    <input type="hidden" name="radius" value="{{ radius }}">
+    <button type="submit" class="btn btn-pdf">Download PDF</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}
