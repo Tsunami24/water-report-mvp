@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: water-report
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHON_ENV
+        value: production
+    healthCheckPath: /
