@@ -2,266 +2,317 @@
 {% block title %}Report — {{ label }}{% endblock %}
 
 {% block head %}
+{% if not pdf_mode %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endif %}
 <style>
-  .report-meta { color: #555; font-size: 0.85rem; margin-bottom: 1.5rem; }
-  .report-meta strong { color: #222; }
-
-  .section-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #888;
-    margin-bottom: 0.5rem;
-  }
-
-  .basin-status-block {
+  /* ---- layout ---- */
+  .report-header {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
     display: flex;
+    justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
+    flex-wrap: wrap;
   }
-  .basin-status-icon {
-    font-size: 2rem;
-    line-height: 1;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-  }
-
-  .well-stat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-  }
-  .well-stat {
-    background: #f8f9fa;
-    border: 1px solid #eee;
-    border-radius: 4px;
-    padding: 0.65rem 0.85rem;
-  }
-  .well-stat .value {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #1a6b9a;
-    line-height: 1.2;
-  }
-  .well-stat .stat-label {
-    font-size: 0.75rem;
-    color: #666;
-    margin-top: 0.15rem;
+  .report-header h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.2rem; }
+  .report-header .meta { font-size: 0.8rem; color: #666; }
+  .report-header .apn-badge {
+    background: #f0f6fb; border: 1px solid #b3d4e8; border-radius: 4px;
+    padding: 0.3rem 0.75rem; font-size: 0.8rem; color: #1a6b9a; font-weight: 600;
+    white-space: nowrap;
   }
 
-  .use-breakdown { font-size: 0.82rem; color: #555; margin-top: 0.5rem; }
-  .use-breakdown span { display: inline-block; margin-right: 0.75rem; }
-
-  .caveat {
-    background: #fffbeb;
-    border-left: 3px solid #f59e0b;
-    padding: 0.65rem 0.9rem;
-    font-size: 0.82rem;
-    color: #555;
-    border-radius: 0 4px 4px 0;
-    margin-top: 1rem;
+  .section-label {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #888; margin-bottom: 0.5rem;
   }
 
-  .disclaimer {
-    font-size: 0.78rem;
-    color: #888;
-    border-top: 1px solid #eee;
-    padding-top: 1rem;
-    margin-top: 1rem;
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .card h2 { font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid #eee; }
+
+  /* ---- basin ---- */
+  .basin-row { display: flex; align-items: flex-start; gap: 1rem; }
+  .basin-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
+
+  /* ---- badges ---- */
+  .badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:12px; font-size:0.72rem; font-weight:600; }
+  .badge-blue   { background:#dbeafe; color:#1e40af; }
+  .badge-yellow { background:#fef9c3; color:#854d0e; }
+  .badge-green  { background:#dcfce7; color:#166534; }
+  .badge-gray   { background:#f1f5f9; color:#475569; }
+  .badge-red    { background:#fee2e2; color:#991b1b; }
+  .flex-gap { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem; }
+
+  /* ---- deep drilling callout ---- */
+  .callout-deep {
+    background: #fff7ed; border: 1px solid #f97316; border-radius: 5px;
+    padding: 0.75rem 1rem; margin-bottom: 1rem;
+    display: flex; align-items: flex-start; gap: 0.6rem;
+  }
+  .callout-deep .icon { font-size: 1.1rem; line-height: 1.4; flex-shrink: 0; }
+  .callout-deep strong { color: #9a3412; }
+  .callout-deep .body { font-size: 0.87rem; color: #555; }
+
+  /* ---- map ---- */
+  #well-map { height: 360px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 1rem; }
+
+  /* ---- stat grid ---- */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+  .stat-box { background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; padding: 0.65rem 0.85rem; text-align: center; }
+  .stat-box .val { font-size: 1.4rem; font-weight: 700; color: #1a6b9a; line-height: 1.2; }
+  .stat-box .lbl { font-size: 0.72rem; color: #666; margin-top: 0.15rem; }
+  .stat-box.warn .val { color: #c2410c; }
+  .stat-box.warn { border-color: #fed7aa; background: #fff7ed; }
+
+  /* ---- charts ---- */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .chart-box { background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 0.5rem; }
+  .chart-box img { width: 100%; height: auto; display: block; }
+
+  /* ---- map depth legend ---- */
+  .depth-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem; color: #555; margin-bottom: 0.75rem; }
+  .depth-legend span { display: flex; align-items: center; gap: 0.3rem; }
+  .depth-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ---- caveat ---- */
+  .caveat { background:#fffbeb; border-left:3px solid #f59e0b; padding:0.6rem 0.9rem; font-size:0.8rem; color:#555; border-radius:0 4px 4px 0; margin-top:0.75rem; }
+
+  /* ---- disclaimer ---- */
+  .disclaimer { font-size: 0.75rem; color: #999; border-top: 1px solid #eee; padding-top: 0.75rem; margin-top: 0.75rem; }
+
+  .text-muted { color: #666; font-size: 0.87rem; }
+  .mt-1 { margin-top: 0.5rem; }
+
+  @media (max-width: 560px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
   }
 
-  @media (max-width: 480px) {
-    .well-stat-grid { grid-template-columns: 1fr; }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# ---- Header ---- #}
-<div class="report-meta">
-  <strong>{{ label }}</strong>
-  {% if apn %} &mdash; APN: {{ apn }}{% endif %}
-  <br>
-  Location: {{ "%.5f"|format(lat) }}, {{ "%.5f"|format(lon) }}
-  &nbsp;&bull;&nbsp; Report date: {{ report_date }}
+{# ========== HEADER ========== #}
+<div class="report-header">
+  <div>
+    <h2>{{ label }}</h2>
+    <p class="meta">{{ "%.5f"|format(lat) }}, {{ "%.5f"|format(lon) }} &nbsp;&bull;&nbsp; Report date: {{ report_date }}</p>
+  </div>
+  {% if apn %}<div class="apn-badge">APN {{ apn }}</div>{% endif %}
 </div>
 
-{# ---- Basin Status ---- #}
+
+{# ========== 1. BASIN STATUS ========== #}
 <div class="card">
-  <p class="section-label">Groundwater Basin Status</p>
+  <p class="section-label">1 — Groundwater Basin Status</p>
 
   {% if basin.in_basin %}
-  <div class="basin-status-block">
-    <div class="basin-status-icon">💧</div>
+  <div class="basin-row">
+    <div class="basin-icon">💧</div>
     <div>
-      <p>
-        This parcel is located within the
-        <strong>{{ basin.basin_name }}</strong>
-        (Basin {{ basin.basin_id }}).
-      </p>
-      <div class="flex-gap mt-1">
-        {% if basin.priority == 'High' %}
-          <span class="badge badge-red">High Priority</span>
-        {% elif basin.priority == 'Medium' %}
-          <span class="badge badge-yellow">Medium Priority</span>
-        {% elif basin.priority == 'Low' %}
-          <span class="badge badge-gray">Low Priority</span>
-        {% elif basin.priority == 'Very Low' %}
-          <span class="badge badge-gray">Very Low Priority</span>
+      <p><strong>{{ basin.basin_name }}</strong> (Basin {{ basin.basin_id }})</p>
+      <div class="flex-gap">
+        {% if basin.priority == 'High' %}<span class="badge badge-red">High Priority</span>
+        {% elif basin.priority == 'Medium' %}<span class="badge badge-yellow">Medium Priority</span>
+        {% elif basin.priority == 'Low' %}<span class="badge badge-gray">Low Priority</span>
+        {% elif basin.priority == 'Very Low' %}<span class="badge badge-gray">Very Low Priority</span>
         {% endif %}
-
-        {% if basin.sgma_managed %}
-          <span class="badge badge-blue">SGMA Managed</span>
-        {% else %}
-          <span class="badge badge-gray">Not SGMA Required</span>
-        {% endif %}
+        {% if basin.sgma_managed %}<span class="badge badge-blue">SGMA Managed</span>
+        {% else %}<span class="badge badge-gray">Not SGMA Required</span>{% endif %}
       </div>
-      {% if basin.gsa_name %}
-      <p class="text-muted mt-1">GSA: {{ basin.gsa_name }}</p>
-      {% endif %}
+      {% if basin.gsa_name %}<p class="text-muted mt-1">GSA: {{ basin.gsa_name }}</p>{% endif %}
     </div>
   </div>
 
   {% else %}
-  <div class="basin-status-block">
-    <div class="basin-status-icon">⛰️</div>
+  <div class="basin-row">
+    <div class="basin-icon">⛰️</div>
     <div>
-      <p>
-        This parcel does <strong>not</strong> fall within a defined
-        Bulletin 118 groundwater basin boundary.
-      </p>
+      <p><strong>Outside any Bulletin 118 groundwater basin boundary.</strong></p>
       <p class="text-muted mt-1">
-        This is common for inland/foothill areas of San Diego County where
-        groundwater occurs in fractured hard-rock formations rather than
-        alluvial basins. SGMA reporting and allocation requirements
-        generally do not apply here. The key question is what nearby
-        well records suggest about local drilling depth, water level,
-        and yield.
+        Common for inland/foothill areas of San Diego County where groundwater occurs in
+        fractured hard-rock formations rather than alluvial basins. SGMA reporting and
+        allocation requirements do not apply here. The key question is what nearby well
+        records suggest about local drilling depth, water level, and yield.
       </p>
     </div>
   </div>
   {% endif %}
 </div>
 
-{# ---- Nearby Wells ---- #}
+
+{# ========== 2. MAP ========== #}
+{% if wells.count > 0 and not pdf_mode %}
 <div class="card">
-  <p class="section-label">Nearby Well Records (within {{ radius }} miles)</p>
+  <p class="section-label">2 — Parcel Location &amp; Nearby Wells</p>
+
+  <div class="depth-legend">
+    <span><span class="depth-dot" style="background:#22c55e"></span> &lt; 300 ft</span>
+    <span><span class="depth-dot" style="background:#eab308"></span> 300–600 ft</span>
+    <span><span class="depth-dot" style="background:#f97316"></span> 600–1,000 ft</span>
+    <span><span class="depth-dot" style="background:#ef4444"></span> &gt; 1,000 ft</span>
+    <span><span class="depth-dot" style="background:#9ca3af"></span> Depth unknown</span>
+  </div>
+
+  <div id="well-map"></div>
+
+  <p class="caveat">
+    Well locations are accurate to the surrounding ~1 sq. mile (PLSS section centroid), not exact addresses.
+    Click any marker for details.
+  </p>
+</div>
+{% endif %}
+
+
+{# ========== 3. WELL DATA ========== #}
+<div class="card">
+  <p class="section-label">{% if not pdf_mode %}3{% else %}2{% endif %} — Nearby Well Records (within {{ radius }} miles)</p>
 
   {% if wells.count == 0 %}
-  <p class="text-muted">
-    No well completion records found within {{ radius }} miles.
-    This may reflect sparse historical drilling or gaps in the OSWCR
-    dataset. Consider widening the search radius.
-  </p>
+  <p class="text-muted">No well completion records found within {{ radius }} miles. Consider widening the search radius.</p>
 
   {% else %}
   {% set s = wells.summary %}
 
-  <div class="well-stat-grid">
-    <div class="well-stat">
-      <div class="value">{{ wells.count }}</div>
-      <div class="stat-label">Wells found within {{ radius }} mi</div>
+  {# Deep drilling callout #}
+  {% if s.median_depth_ft >= 500 %}
+  <div class="callout-deep">
+    <span class="icon">⚠️</span>
+    <div class="body">
+      <strong>Deep drilling area</strong> — median well depth in this area is {{ s.median_depth_ft|int }} ft.
+      Wells of this depth carry significantly higher drilling and casing costs. Budget and
+      contractor selection should account for this before committing to a well on this parcel.
     </div>
-    <div class="well-stat">
-      <div class="value">{{ s.median_depth_ft|int }} ft</div>
-      <div class="stat-label">Median completed depth</div>
+  </div>
+  {% endif %}
+
+  {# Stat cards #}
+  <div class="stat-grid">
+    <div class="stat-box">
+      <div class="val">{{ wells.count }}</div>
+      <div class="lbl">Wells within {{ radius }} mi</div>
     </div>
-    <div class="well-stat">
-      <div class="value">{{ s.median_static_water_level_ft|int }} ft</div>
-      <div class="stat-label">Median static water level (BLS)</div>
+    <div class="stat-box {% if s.median_depth_ft >= 500 %}warn{% endif %}">
+      <div class="val">{{ s.median_depth_ft|int }} ft</div>
+      <div class="lbl">Median completed depth</div>
+    </div>
+    <div class="stat-box">
+      <div class="val">{{ s.median_static_water_level_ft|int }} ft</div>
+      <div class="lbl">Median static water level (BLS)</div>
     </div>
     {% if s.median_yield_gpm is not none %}
-    <div class="well-stat">
-      <div class="value">{{ "%.1f"|format(s.median_yield_gpm) }} gpm</div>
-      <div class="stat-label">Median yield ({{ s.yield_reported_count }}/{{ wells.count }} wells reported)</div>
+    <div class="stat-box">
+      <div class="val">{{ "%.1f"|format(s.median_yield_gpm) }} gpm</div>
+      <div class="lbl">Median yield ({{ s.yield_reported_count }}/{{ wells.count }} wells)</div>
     </div>
     {% else %}
-    <div class="well-stat">
-      <div class="value">—</div>
-      <div class="stat-label">Yield not reported (common in older records)</div>
+    <div class="stat-box">
+      <div class="val">—</div>
+      <div class="lbl">Yield not reported</div>
     </div>
     {% endif %}
   </div>
 
-  <p class="use-breakdown mt-1">
-    <strong>Use types:</strong>
-    {% for use, cnt in s.use_breakdown.items() %}
-    <span>{{ use }}: {{ cnt }}</span>
-    {% endfor %}
-  </p>
-
-  <p class="text-muted mt-1" style="font-size:0.8rem">
-    Depth range: {{ s.depth_range_ft[0] }}–{{ s.depth_range_ft[1] }} ft &bull;
+  <p class="text-muted" style="font-size:0.8rem">
+    Depth range: {{ s.depth_range_ft[0] }}–{{ s.depth_range_ft[1] }} ft &nbsp;&bull;&nbsp;
     Records from {{ s.date_range[0] }} to {{ s.date_range[1] }}
   </p>
 
-  <div class="caveat">
-    Well completion report locations are accurate to the surrounding ~1 sq. mile
-    (PLSS section), not an exact address. These figures describe wells reported
-    in this general area, not necessarily on this specific parcel.
+  {# Charts #}
+  {% if charts %}
+  <div class="chart-grid" style="margin-top:1rem">
+    {% if charts.depth %}
+    <div class="chart-box">
+      <img src="data:image/png;base64,{{ charts.depth }}" alt="Depth distribution chart">
+    </div>
+    {% endif %}
+    {% if charts.timeline %}
+    <div class="chart-box">
+      <img src="data:image/png;base64,{{ charts.timeline }}" alt="Drilling timeline chart">
+    </div>
+    {% endif %}
+    {% if charts.use %}
+    <div class="chart-box" style="grid-column: 1 / -1">
+      <img src="data:image/png;base64,{{ charts.use }}" alt="Well use breakdown chart">
+    </div>
+    {% endif %}
   </div>
+  {% endif %}
 
+  <div class="caveat">
+    Well completion report locations are accurate to ~1 sq. mile (PLSS section), not an exact address.
+    These figures describe wells in the general area, not necessarily on this specific parcel.
+  </div>
   {% endif %}
 </div>
 
-{# ---- Summary ---- #}
+
+{# ========== 4. SUMMARY ========== #}
 <div class="card">
-  <p class="section-label">Summary</p>
+  <p class="section-label">{% if not pdf_mode %}4{% else %}3{% endif %} — Summary &amp; Guidance</p>
 
   {% if basin.in_basin %}
     <p>
-      This parcel sits within an actively
-      {% if basin.sgma_managed %}SGMA-managed{% else %}defined Bulletin 118{% endif %}
-      basin
-      ({{ basin.basin_name }}, priority: {{ basin.priority or "—" }}).
+      This parcel sits within the <strong>{{ basin.basin_name }}</strong>
+      ({{ basin.priority or "—" }} priority{% if basin.sgma_managed %}, SGMA-managed{% endif %}).
       {% if basin.sgma_managed %}
-      Check the SGMA Portal for the applicable Groundwater Sustainability Plan,
-      allocation limits, and any probationary status for this basin.
+      Consult the SGMA Portal for the applicable Groundwater Sustainability Plan, allocation limits,
+      and any probationary status for this basin before planning any new extraction.
       {% else %}
-      This basin is below the SGMA management threshold — no GSP is required,
-      though the basin boundary still applies to any DWR reporting.
+      This basin is below the SGMA management threshold — no GSP is required, though the basin
+      boundary still applies to DWR reporting.
       {% endif %}
     </p>
   {% else %}
     {% if wells.count >= 8 %}
     <p>
-      Multiple wells have been drilled in this general area with recorded
-      depth and yield data, suggesting groundwater is locally accessible.
-      This is <strong>not a guarantee</strong> for any specific spot on the
-      parcel — fractured-rock yield is highly localized — but it provides
-      useful context on what to expect from a new well.
+      Multiple wells have been drilled in this general area with recorded depth and yield data,
+      suggesting groundwater is locally accessible. Fractured-rock yield is highly localized —
+      this is <strong>not a guarantee</strong> for any specific spot on the parcel — but it
+      provides useful context on what to expect from a new well.
     </p>
+    {% if wells.summary and wells.summary.median_depth_ft >= 500 %}
+    <p class="mt-1">
+      <strong>Note on depth:</strong> At a median of {{ wells.summary.median_depth_ft|int }} ft,
+      wells in this area are deep. Expect higher drilling costs and longer timelines compared to
+      shallower areas of San Diego County. Engage a licensed well driller familiar with the local
+      formation before committing.
+    </p>
+    {% endif %}
     {% elif wells.count > 0 %}
     <p>
-      Relatively few well records ({{ wells.count }}) exist within {{ radius }} miles.
-      This may reflect lower historical development density rather than poor
-      water prospects, but less local data is available to inform expectations.
-      Consider widening the search radius or consulting a local well driller.
+      Relatively few well records ({{ wells.count }}) exist within {{ radius }} miles. This may
+      reflect lower historical development density rather than poor water prospects. Consider widening
+      the search radius or consulting a local well driller for site-specific advice.
     </p>
     {% else %}
-    <p>
-      No well records found within {{ radius }} miles. Consider widening the
-      search radius or consulting a local well driller for site-specific advice.
-    </p>
+    <p>No well records found within {{ radius }} miles. Consider widening the radius.</p>
     {% endif %}
   {% endif %}
 
   <p class="disclaimer">
-    This report is generated from publicly available state well-completion and
-    groundwater basin data (DWR Bulletin 118, OSWCR). It is informational only
-    and is not a substitute for a site-specific hydrogeological assessment.
+    This report is generated from publicly available state well-completion and groundwater basin data
+    (DWR Bulletin 118, OSWCR). It is informational only and is not a substitute for a site-specific
+    hydrogeological assessment or licensed well driller consultation.
   </p>
 </div>
 
-{# ---- Actions ---- #}
-{% if not pdf_mode %}
-<div class="flex-gap no-print">
-  <a href="/" class="btn btn-secondary">&larr; New search</a>
 
-  {# Hidden form posts same params to /report/pdf #}
+{# ========== ACTIONS ========== #}
+{% if not pdf_mode %}
+<div class="flex-gap no-print" style="margin-top:0.5rem">
+  <a href="/" class="btn btn-secondary">&larr; New search</a>
   <form method="POST" action="/report/pdf" style="display:inline">
     <input type="hidden" name="apn"    value="{{ apn }}">
     <input type="hidden" name="label"  value="{{ label }}">
@@ -271,6 +322,53 @@
     <button type="submit" class="btn btn-pdf">Download PDF</button>
   </form>
 </div>
+{% endif %}
+
+
+{# ========== LEAFLET MAP INIT ========== #}
+{% if wells.count > 0 and not pdf_mode %}
+<script>
+(function () {
+  var parcelLat = {{ lat }};
+  var parcelLon = {{ lon }};
+  var wells = {{ map_wells | tojson }};
+
+  var map = L.map('well-map').setView([parcelLat, parcelLon], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  // Parcel marker
+  var parcelIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;background:#1a6b9a;border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+    iconAnchor: [9, 9]
+  });
+  L.marker([parcelLat, parcelLon], {icon: parcelIcon})
+    .addTo(map)
+    .bindPopup('<strong>Subject Parcel</strong>{{ " — APN " + apn if apn else "" }}');
+
+  // Well markers
+  wells.forEach(function(w) {
+    if (!w.lat || !w.lon) return;
+    var icon = L.divIcon({
+      className: '',
+      html: '<div style="width:10px;height:10px;background:' + w.color + ';border:1.5px solid rgba(0,0,0,0.25);border-radius:50%;opacity:0.85"></div>',
+      iconAnchor: [5, 5]
+    });
+    var depth = w.depth ? w.depth + ' ft' : 'depth unknown';
+    L.marker([w.lat, w.lon], {icon: icon})
+      .addTo(map)
+      .bindPopup(
+        '<strong>' + w.use + '</strong><br>' +
+        'Depth: ' + depth + '<br>' +
+        (w.wcr ? 'WCR: ' + w.wcr : '')
+      );
+  });
+})();
+</script>
 {% endif %}
 
 {% endblock %}

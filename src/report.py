@@ -82,6 +82,12 @@ def generate_report(
                       "radius.")
     else:
         s = well_data["summary"]
+        if s["median_depth_ft"] >= 500:
+            lines.append(f"> ⚠️ **Deep drilling area** — median well depth in this area is "
+                          f"**{s['median_depth_ft']:.0f} ft**. Wells of this depth carry significantly "
+                          f"higher drilling and casing costs. Budget and contractor selection should "
+                          f"account for this before committing to a well on this parcel.")
+            lines.append("")
         lines.append(f"- **Wells found:** {well_data['count']}")
         lines.append(f"- **Reported depth range:** {s['depth_range_ft'][0]}–{s['depth_range_ft'][1]} ft "
                       f"(median {s['median_depth_ft']:.0f} ft)")

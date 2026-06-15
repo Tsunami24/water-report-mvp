@@ -20,6 +20,7 @@ from flask import Flask, Response, abort, render_template, request
 
 from src.basin import get_basin_context, load_basins
 from src.wells import get_nearby_wells, load_wells
+from src.charts import depth_histogram, drilling_timeline, use_breakdown_chart, well_map_data
 
 BASINS_PATH = os.environ.get("BASINS_PATH", "data/real/basin_boundaries.geojson")
 WELLS_PATH = os.environ.get("WELLS_PATH", "data/real/well_completion_reports.csv")
@@ -31,6 +32,43 @@ BASINS = load_basins(BASINS_PATH)
 print(f"Loading well completion reports from {WELLS_PATH} ...", flush=True)
 WELLS = load_wells(WELLS_PATH)
 print(f"Ready — {len(BASINS)} basins, {len(WELLS):,} wells.", flush=True)
+
+
+# ---------------------------------------------------------------------------
+# APN lookup (SANDAG parcel service → CA State Plane → WGS84)
+# ---------------------------------------------------------------------------
+
+def lookup_apn(apn: str):
+    """
+    Resolve an APN to (lat, lon, label) using the SANDAG parcel FeatureServer.
+    APN may be formatted (128-112-04-00) or raw digits (1281120400) — we strip dashes.
+    Returns (lat, lon, label) or raises ValueError if not found.
+    """
+    from pyproj import Transformer
+    raw = apn.replace("-", "").replace(" ", "")
+    params = urllib.parse.urlencode({
+        "where": f"apn='{raw}'",
+        "outFields": "apn,situs_address,situs_street,situs_suffix,situs_community,situs_zip,x_coord,y_coord,acreage",
+        "returnGeometry": "false",
+        "f": "json",
+    })
+    url = f"https://geo.sandag.org/server/rest/services/Hosted/Parcels/FeatureServer/0/query?{params}"
+    req = urllib.request.Request(url, headers={"User-Agent": "water-report-mvp/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = json.load(r)
+    feats = data.get("features", [])
+    if not feats:
+        raise ValueError(f"APN {apn} not found in San Diego County parcel data.")
+    a = feats[0]["attributes"]
+    # Convert CA State Plane Zone 6 (EPSG:2230, US survey feet) → WGS84
+    t = Transformer.from_crs("EPSG:2230", "EPSG:4326", always_xy=True)
+    lon, lat = t.transform(a["x_coord"], a["y_coord"])
+    # Build a readable label from whatever address fields exist
+    num = str(int(a["situs_address"])) if a.get("situs_address") else ""
+    street = " ".join(filter(None, [num, a.get("situs_street"), a.get("situs_suffix")])).strip()
+    community = (a.get("situs_community") or "").title()
+    label = ", ".join(filter(None, [street, community])) or f"APN {apn}"
+    return lat, lon, label
 
 
 # ---------------------------------------------------------------------------
@@ -102,12 +140,24 @@ def report():
     lat_raw = request.form.get("lat", "").strip()
     lon_raw = request.form.get("lon", "").strip()
 
-    # Prefer explicit lat/lon; otherwise geocode address
+    # Resolution priority: lat/lon > APN lookup > address geocode
     if lat_raw and lon_raw:
         try:
             lat, lon = float(lat_raw), float(lon_raw)
         except ValueError:
-            return render_template("index.html", error="Invalid lat/lon — must be decimal numbers.")
+            return render_template("index.html", error="Invalid lat/lon — must be decimal numbers.", form=request.form)
+    elif apn:
+        try:
+            lat, lon, apn_label = lookup_apn(apn)
+            if not label or label == apn:
+                label = apn_label
+        except Exception as e:
+            return render_template(
+                "index.html",
+                error=f"Could not find APN {apn} in San Diego County parcel data. "
+                      "Double-check the number, or enter an address / lat-lon instead.",
+                form=request.form,
+            )
     elif street:
         try:
             lat, lon = geocode_address(street, city, state)
@@ -121,10 +171,22 @@ def report():
                 form=request.form,
             )
     else:
-        return render_template("index.html", error="Enter an address or lat/lon coordinates.", form=request.form)
+        return render_template("index.html", error="Enter an APN, address, or lat/lon coordinates.", form=request.form)
 
     basin_ctx, well_data = _run_report(apn, label, lat, lon, radius)
-    ctx = _template_ctx(apn, label, lat, lon, radius, basin_ctx, well_data)
+
+    charts = {}
+    map_wells = []
+    if well_data["count"] > 0:
+        records = well_data["records"]
+        s = well_data["summary"]
+        charts["depth"]    = depth_histogram(records, s["median_depth_ft"])
+        charts["timeline"] = drilling_timeline(records)
+        charts["use"]      = use_breakdown_chart(s["use_breakdown"])
+        map_wells          = well_map_data(records)
+
+    ctx = _template_ctx(apn, label, lat, lon, radius, basin_ctx, well_data,
+                        charts=charts, map_wells=map_wells)
     return render_template("report.html", **ctx)
 
 
