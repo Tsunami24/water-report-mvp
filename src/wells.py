@@ -90,11 +90,20 @@ def get_nearby_wells(lat: float, lon: float, wells: pd.DataFrame, radius_miles: 
         "date_range": (str(nearby["DateWorkEnded"].min())[:10], str(nearby["DateWorkEnded"].max())[:10]),
     }
 
+    records = nearby.to_dict(orient="records")
+    # Normalize DateWorkEnded to a plain string (or None) so templates can safely slice it
+    for r in records:
+        d = r.get("DateWorkEnded")
+        try:
+            r["DateWorkEnded"] = str(d)[:10] if d and str(d) not in ("nan", "NaT") else None
+        except Exception:
+            r["DateWorkEnded"] = None
+
     return {
         "count": int(len(nearby)),
         "radius_miles": radius_miles,
         "summary": summary,
-        "records": nearby.to_dict(orient="records"),
+        "records": records,
     }
 
 
