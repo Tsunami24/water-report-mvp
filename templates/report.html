@@ -80,6 +80,19 @@
   .depth-legend span { display: flex; align-items: center; gap: 0.3rem; }
   .depth-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
+  /* ---- well records table ---- */
+  .wcr-table { width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:1rem; }
+  .wcr-table th { background:#f1f5f9; color:#555; font-weight:600; text-align:left; padding:0.4rem 0.6rem; border-bottom:2px solid #e0e0e0; white-space:nowrap; }
+  .wcr-table td { padding:0.35rem 0.6rem; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+  .wcr-table tr:last-child td { border-bottom:none; }
+  .wcr-table tr:hover td { background:#fafafa; }
+  .wcr-num { font-family:monospace; font-size:0.78rem; color:#1a6b9a; }
+  .btn-pdf-sm { display:inline-block; padding:0.2rem 0.55rem; background:#1a6b9a; color:#fff; border-radius:3px; font-size:0.72rem; text-decoration:none; white-space:nowrap; }
+  .btn-pdf-sm:hover { background:#145a82; }
+  .wcr-table-wrap { overflow-x:auto; }
+  details summary { cursor:pointer; font-size:0.82rem; color:#555; margin-top:0.75rem; user-select:none; }
+  details summary:hover { color:#1a6b9a; }
+
   /* ---- caveat ---- */
   .caveat { background:#fffbeb; border-left:3px solid #f59e0b; padding:0.6rem 0.9rem; font-size:0.8rem; color:#555; border-radius:0 4px 4px 0; margin-top:0.75rem; }
 
@@ -250,6 +263,49 @@
   </div>
   {% endif %}
 
+  {# Individual well records table #}
+  {% if wells.records %}
+  <details>
+    <summary>Show individual well records ({{ wells.count }})</summary>
+    <div class="wcr-table-wrap">
+      <table class="wcr-table">
+        <thead>
+          <tr>
+            <th>WCR Number</th>
+            <th>Date</th>
+            <th>Depth (ft)</th>
+            <th>Static WL (ft)</th>
+            <th>Yield (gpm)</th>
+            <th>Use</th>
+            <th>Dist (mi)</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in wells.records %}
+          <tr>
+            <td><span class="wcr-num">{{ w.WCRNumber or "—" }}</span></td>
+            <td>{{ (w.DateWorkEnded or "")[:10] or "—" }}</td>
+            <td>{{ w.TotalCompletedDepth|int if w.TotalCompletedDepth else "—" }}</td>
+            <td>{{ w.StaticWaterLevel|int if w.StaticWaterLevel else "—" }}</td>
+            <td>{{ "%.0f"|format(w.WellYield) if w.WellYield else "—" }}</td>
+            <td>{{ w.PlannedUseFormerUse or "—" }}</td>
+            <td>{{ "%.2f"|format(w.distance_miles) if w.distance_miles is defined else "—" }}</td>
+            <td>
+              {% if w.WCRNumber and wcr_urls and w.WCRNumber in wcr_urls %}
+              <a class="btn-pdf-sm" href="{{ wcr_urls[w.WCRNumber] }}" target="_blank" rel="noopener">PDF</a>
+              {% elif w.WCRNumber %}
+              <span style="color:#aaa;font-size:0.72rem">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+
   <div class="caveat">
     Well completion report locations are accurate to ~1 sq. mile (PLSS section), not an exact address.
     These figures describe wells in the general area, not necessarily on this specific parcel.
@@ -332,6 +388,7 @@
   var parcelLat = {{ lat }};
   var parcelLon = {{ lon }};
   var wells = {{ map_wells | tojson }};
+  var wcrUrls = {{ wcr_urls | tojson }};
 
   var map = L.map('well-map').setView([parcelLat, parcelLon], 13);
 
@@ -359,12 +416,16 @@
       iconAnchor: [5, 5]
     });
     var depth = w.depth ? w.depth + ' ft' : 'depth unknown';
+    var pdfLink = (w.wcr && wcrUrls[w.wcr])
+      ? '<br><a href="' + wcrUrls[w.wcr] + '" target="_blank" style="color:#1a6b9a">View PDF</a>'
+      : '';
     L.marker([w.lat, w.lon], {icon: icon})
       .addTo(map)
       .bindPopup(
         '<strong>' + w.use + '</strong><br>' +
         'Depth: ' + depth + '<br>' +
-        (w.wcr ? 'WCR: ' + w.wcr : '')
+        (w.wcr ? 'WCR: ' + w.wcr : '') +
+        pdfLink
       );
   });
 })();

@@ -109,3 +109,49 @@ with open(wells_path, "w", newline="") as fout:
 
 log(f"  Saved {wells_path} ({os.path.getsize(wells_path) // 1024 // 1024} MB, {total_written} rows)")
 log("Data download complete.")
+
+
+# ---------------------------------------------------------------------------
+# 3. Box PLSS folder ID mapping (CADWR shared folder — no API key needed)
+# ---------------------------------------------------------------------------
+
+import time
+
+BOX_ROOT = "https://cadwr.app.box.com/v/WellCompletionReports"
+SD_COUNTY_FOLDER_ID = "77346720611"
+
+log("Building Box PLSS folder ID mapping for San Diego County...")
+
+plss_map = {}
+for page in range(1, 20):  # safety cap; SD County has 8 pages as of 2025
+    url = f"{BOX_ROOT}/folder/{SD_COUNTY_FOLDER_ID}?page={page}"
+    req = urllib.request.Request(url, headers={"User-Agent": "water-report-mvp/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            html = r.read().decode()
+    except Exception as e:
+        log(f"  Box page {page} fetch failed: {e}")
+        break
+
+    import re as _re
+    match = _re.search(r"postStreamData\s*=\s*(\{.*?\});", html, _re.S)
+    if not match:
+        break
+    data = json.loads(match.group(1))
+    sf = data.get("/app-api/enduserapp/shared-folder", {})
+    items = sf.get("items", [])
+    page_count = int(sf.get("pageCount", 1))
+
+    for item in items:
+        if item.get("type") == "folder":
+            plss_map[item["name"]] = item["id"]
+
+    log(f"  Page {page}/{page_count}: {len(items)} items")
+    if page >= page_count:
+        break
+    time.sleep(0.3)
+
+box_path = os.path.join(OUT_DIR, "box_plss_folders.json")
+with open(box_path, "w") as f:
+    json.dump({"county_folder_id": int(SD_COUNTY_FOLDER_ID), "plss_folders": plss_map}, f, indent=2)
+log(f"  Saved {box_path} ({len(plss_map)} PLSS sections)")

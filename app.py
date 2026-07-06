@@ -21,9 +21,11 @@ from flask import Flask, Response, abort, render_template, request
 from src.basin import get_basin_context, load_basins
 from src.wells import get_nearby_wells, load_wells
 from src.charts import depth_histogram, drilling_timeline, use_breakdown_chart, well_map_data
+from src.box_links import load_plss_folder_map, get_wcr_file_urls
 
 BASINS_PATH = os.environ.get("BASINS_PATH", "data/real/basin_boundaries.geojson")
 WELLS_PATH = os.environ.get("WELLS_PATH", "data/real/well_completion_reports.csv")
+BOX_PLSS_PATH = os.environ.get("BOX_PLSS_PATH", "data/real/box_plss_folders.json")
 
 app = Flask(__name__)
 
@@ -31,7 +33,9 @@ print(f"Loading basin boundaries from {BASINS_PATH} ...", flush=True)
 BASINS = load_basins(BASINS_PATH)
 print(f"Loading well completion reports from {WELLS_PATH} ...", flush=True)
 WELLS = load_wells(WELLS_PATH)
-print(f"Ready — {len(BASINS)} basins, {len(WELLS):,} wells.", flush=True)
+print(f"Loading Box PLSS folder map from {BOX_PLSS_PATH} ...", flush=True)
+BOX_PLSS_MAP = load_plss_folder_map(BOX_PLSS_PATH)
+print(f"Ready — {len(BASINS)} basins, {len(WELLS):,} wells, {len(BOX_PLSS_MAP)} PLSS sections mapped.", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +181,7 @@ def report():
 
     charts = {}
     map_wells = []
+    wcr_urls = {}
     if well_data["count"] > 0:
         records = well_data["records"]
         s = well_data["summary"]
@@ -184,9 +189,11 @@ def report():
         charts["timeline"] = drilling_timeline(records)
         charts["use"]      = use_breakdown_chart(s["use_breakdown"])
         map_wells          = well_map_data(records)
+        if BOX_PLSS_MAP:
+            wcr_urls = get_wcr_file_urls(BOX_PLSS_MAP, records)
 
     ctx = _template_ctx(apn, label, lat, lon, radius, basin_ctx, well_data,
-                        charts=charts, map_wells=map_wells)
+                        charts=charts, map_wells=map_wells, wcr_urls=wcr_urls)
     return render_template("report.html", **ctx)
 
 

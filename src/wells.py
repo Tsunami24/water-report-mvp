@@ -28,6 +28,10 @@ COLUMN_MAP = {
     "STATICWATERLEVEL": "StaticWaterLevel",
     "WELLYIELD": "WellYield",
     "DATEWORKENDED": "DateWorkEnded",
+    "TOWNSHIP": "Township",
+    "RANGE": "Range",
+    "SECTION": "Section",
+    "DRILLERNAME": "DrillerName",
 }
 
 
