@@ -190,10 +190,16 @@
 
 {# ========== 3. WELL DATA ========== #}
 <div class="card">
-  <p class="section-label">{% if not pdf_mode %}3{% else %}2{% endif %} — Nearby Well Records (within {{ radius }} miles)</p>
+  <p class="section-label">{% if not pdf_mode %}3{% else %}2{% endif %} — Nearby Well Records (within {{ wells.radius_miles }} miles)</p>
+
+  {% if wells.widened_from is defined %}
+  <div class="alert alert-info" style="margin-bottom:1rem;">
+    No wells found within {{ wells.widened_from }} miles — automatically expanded search to {{ wells.radius_miles }} miles.
+  </div>
+  {% endif %}
 
   {% if wells.count == 0 %}
-  <p class="text-muted">No well completion records found within {{ radius }} miles. Consider widening the search radius.</p>
+  <p class="text-muted">No well completion records found within 10 miles of this location.</p>
 
   {% else %}
   {% set s = wells.summary %}

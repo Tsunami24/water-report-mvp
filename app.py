@@ -104,9 +104,21 @@ def geocode_address(street: str, city: str, state: str = "CA"):
 # ---------------------------------------------------------------------------
 
 def _run_report(apn, label, lat, lon, radius):
-    """Return basin_ctx + well_data dicts for a parcel."""
+    """Return basin_ctx + well_data dicts for a parcel.
+
+    If no wells are found at the requested radius, automatically widens to
+    3, 5, and 10 miles. well_data['radius_miles'] reflects the actual radius used.
+    """
     basin_ctx = get_basin_context(lat, lon, BASINS)
     well_data = get_nearby_wells(lat, lon, WELLS, radius_miles=radius)
+    if well_data["count"] == 0:
+        for wider in [3.0, 5.0, 10.0]:
+            if wider <= radius:
+                continue
+            well_data = get_nearby_wells(lat, lon, WELLS, radius_miles=wider)
+            if well_data["count"] > 0:
+                well_data["widened_from"] = radius
+                break
     return basin_ctx, well_data
 
 
