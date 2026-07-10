@@ -13,7 +13,7 @@ address point. "Nearby" therefore means "reported in this general area",
 not "within N feet". Report copy should reflect this honestly.
 """
 
-import math
+import numpy as np
 import pandas as pd
 
 
@@ -51,21 +51,19 @@ def load_wells(path: str) -> pd.DataFrame:
     return df
 
 
-def haversine_miles(lat1, lon1, lat2, lon2) -> float:
-    R = 3958.8  # Earth radius in miles
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
-
-
 def get_nearby_wells(lat: float, lon: float, wells: pd.DataFrame, radius_miles: float = 1.5) -> dict:
+    R = 3958.8
+    lat1 = np.radians(lat)
+    lon1 = np.radians(lon)
+    lat2 = np.radians(wells["DecimalLatitude"].values)
+    lon2 = np.radians(wells["DecimalLongitude"].values)
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    distances = 2 * R * np.arcsin(np.sqrt(a))
+
     df = wells.copy()
-    df["distance_miles"] = df.apply(
-        lambda r: haversine_miles(lat, lon, r["DecimalLatitude"], r["DecimalLongitude"]),
-        axis=1,
-    )
+    df["distance_miles"] = distances
     nearby = df[df["distance_miles"] <= radius_miles].sort_values("distance_miles")
 
     if nearby.empty:

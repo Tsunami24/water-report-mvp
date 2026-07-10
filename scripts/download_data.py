@@ -69,7 +69,7 @@ log(f"  Saved {basins_path} ({os.path.getsize(basins_path) // 1024 // 1024} MB)"
 CKAN_RESOURCE_ID = "ee7438c2-d7d5-45bd-980e-786a59e7e92c"
 BATCH = 10000
 
-log("Downloading OSWCR well completion reports (San Diego County)...")
+log("Downloading OSWCR well completion reports (statewide CA)...")
 
 import csv
 
@@ -82,7 +82,6 @@ with open(wells_path, "w", newline="") as fout:
     while True:
         params = urllib.parse.urlencode({
             "resource_id": CKAN_RESOURCE_ID,
-            "filters": '{"COUNTYNAME":"San Diego"}',
             "limit": BATCH,
             "offset": offset,
         })
