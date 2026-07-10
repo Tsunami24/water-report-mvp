@@ -20,7 +20,11 @@ import re
 import urllib.request
 
 BOX_ROOT = "https://cadwr.app.box.com/v/WellCompletionReports"
-_TIMEOUT = 8
+_TIMEOUT = 5
+_MAX_PAGES = 3  # cap at 60 files per folder; older wells rarely have PDFs anyway
+
+# In-memory cache: folder_id → list of items (persists for app lifetime)
+_folder_cache: dict[str, list] = {}
 
 
 def load_plss_folder_map(path: str) -> dict:
@@ -73,10 +77,11 @@ def get_wcr_file_urls(plss_folder_map: dict, nearby_wells: list) -> dict:
         if not folder_id:
             continue
         try:
-            items, page_count = _fetch_box_page_items(folder_id)
-            # Fetch additional pages if needed (Box shows 20 per page)
-            if page_count > 1:
-                for page in range(2, page_count + 1):
+            folder_key = str(folder_id)
+            if folder_key not in _folder_cache:
+                items, page_count = _fetch_box_page_items(folder_id)
+                pages_to_fetch = min(page_count, _MAX_PAGES)
+                for page in range(2, pages_to_fetch + 1):
                     url = f"{BOX_ROOT}/folder/{folder_id}?page={page}"
                     req = urllib.request.Request(url, headers={"User-Agent": "water-report-mvp/1.0"})
                     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
@@ -85,6 +90,9 @@ def get_wcr_file_urls(plss_folder_map: dict, nearby_wells: list) -> dict:
                     if match:
                         d = json.loads(match.group(1))
                         items += d.get("/app-api/enduserapp/shared-folder", {}).get("items", [])
+                _folder_cache[folder_key] = items
+            else:
+                items = _folder_cache[folder_key]
 
             # Match items to WCR numbers by filename pattern
             for item in items:
