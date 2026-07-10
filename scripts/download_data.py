@@ -82,6 +82,7 @@ with open(wells_path, "w", newline="") as fout:
     while True:
         params = urllib.parse.urlencode({
             "resource_id": CKAN_RESOURCE_ID,
+            "fields": "WCRNUMBER,COUNTYNAME,DECIMALLATITUDE,DECIMALLONGITUDE,PLANNEDUSEFORMERUSE,TOTALCOMPLETEDDEPTH,STATICWATERLEVEL,WELLYIELD,DATEWORKENDED,TOWNSHIP,RANGE,SECTION,DRILLERNAME",
             "limit": BATCH,
             "offset": offset,
         })
